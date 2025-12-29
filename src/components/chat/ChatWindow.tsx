@@ -1,13 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { ChatHeader } from "./ChatHeader";
-import { CategoryNav } from "./CategoryNav";
-import { SearchBar } from "./SearchBar";
 import { ChatMessage } from "./ChatMessage";
 import { QuickReplies } from "./QuickReplies";
 import { ChatInput } from "./ChatInput";
-import { useTheme } from "@/hooks/useTheme";
-import { welcomeMessage, popularQuestions, faqData } from "@/data/faqData";
+import { welcomeMessage, popularQuestions } from "@/data/faqData";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
@@ -15,18 +12,11 @@ interface Message {
   isUser: boolean;
 }
 
-interface ChatWindowProps {
-  onClose: () => void;
-}
-
-export function ChatWindow({ onClose }: ChatWindowProps) {
-  const { isDark, toggleTheme } = useTheme();
+export function ChatWindow() {
   const [messages, setMessages] = useState<Message[]>([
     { id: "welcome", content: welcomeMessage, isUser: false },
   ]);
   const [isTyping, setIsTyping] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -36,24 +26,6 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
-
-  const getQuickSuggestions = (): string[] => {
-    if (selectedCategory) {
-      return faqData
-        .filter((faq) => faq.category === selectedCategory)
-        .slice(0, 3)
-        .map((faq) => faq.question);
-    }
-    if (searchQuery) {
-      return faqData
-        .filter((faq) =>
-          faq.question.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        .slice(0, 3)
-        .map((faq) => faq.question);
-    }
-    return popularQuestions.slice(0, 3);
-  };
 
   const handleSend = async (message: string) => {
     const userMessage: Message = {
@@ -73,15 +45,16 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data.response,
+        content: data.response || "I apologize, I couldn't process your question. Please try again.",
         isUser: false,
       };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error("Error getting response:", error);
+      toast.error("Failed to get response. Please try again.");
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I apologize, but I'm having trouble responding right now. Please try again or contact the university directly for assistance.",
+        content: "I'm having trouble connecting right now. Please try again or contact the university directly at info@uop.edu.pk",
         isUser: false,
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -90,32 +63,36 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
     }
   };
 
+  const showQuickReplies = messages.length === 1;
+
   return (
-    <div className="chat-window bg-card border border-border/50 animate-scale-in">
-      <ChatHeader isDark={isDark} onToggleTheme={toggleTheme} onClose={onClose} />
-      
-      <CategoryNav
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-      />
-      
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        onClear={() => setSearchQuery("")}
-      />
-      
+    <div className="flex flex-col h-full">
+      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
-          <ChatMessage key={msg.id} content={msg.content} isUser={msg.isUser} />
-        ))}
-        {isTyping && <ChatMessage content="" isUser={false} isTyping />}
-        <div ref={messagesEndRef} />
+        <div className="max-w-3xl mx-auto space-y-4">
+          {messages.map((msg) => (
+            <ChatMessage key={msg.id} content={msg.content} isUser={msg.isUser} />
+          ))}
+          {isTyping && <ChatMessage content="" isUser={false} isTyping />}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
-      
-      <QuickReplies suggestions={getQuickSuggestions()} onSelect={handleSend} />
-      
-      <ChatInput onSend={handleSend} disabled={isTyping} />
+
+      {/* Quick Replies - only show at start */}
+      {showQuickReplies && (
+        <div className="px-4 pb-4">
+          <div className="max-w-3xl mx-auto">
+            <QuickReplies suggestions={popularQuestions} onSelect={handleSend} />
+          </div>
+        </div>
+      )}
+
+      {/* Input Area */}
+      <div className="border-t border-border bg-background">
+        <div className="max-w-3xl mx-auto">
+          <ChatInput onSend={handleSend} disabled={isTyping} />
+        </div>
+      </div>
     </div>
   );
 }
