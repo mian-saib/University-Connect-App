@@ -11,15 +11,19 @@ const Landing = () => {
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-university-gold/5" />
         <div className="absolute inset-0 hero-pattern opacity-30" />
-        
+
         {/* Navigation */}
         <nav className="relative z-10 flex items-center justify-between px-6 py-4 md:px-12">
           <div className="flex items-center gap-3">
-            <img
-              src={universityLogo}
-              alt="University Logo"
-              className="h-12 w-12 rounded-full object-cover ring-2 ring-primary/20"
-            />
+            <a href="https://uop.edu.pk" target="_blank" rel="noopener noreferrer">
+              <img
+                src={universityLogo}
+                alt="University Logo"
+                className="h-12 w-12 rounded-full object-cover ring-2 ring-primary/20"
+              />
+            </a>
+
+
             <div>
               <h1 className="font-display text-xl font-bold text-foreground">
                 University Assistant
@@ -48,7 +52,7 @@ const Landing = () => {
           </h2>
 
           <p className="mb-10 max-w-xl text-center text-lg text-muted-foreground md:text-xl">
-            Have questions about admissions, fees, academics, or campus life? 
+            Have questions about admissions, fees, academics, or campus life?
             Our AI-powered assistant is here to help you 24/7.
           </p>
 
@@ -59,6 +63,8 @@ const Landing = () => {
               <Sparkles className="h-4 w-4 animate-pulse" />
             </Button>
           </Link>
+          <br />
+          <a href="https://uop.edu.pk" target="_blank" rel="noopener noreferrer" className="px-8 py-4 border border-border rounded-full font-semibold text-foreground hover:bg-muted hover:scale-105 hover:shadow-xl transition-all duration-300">Visit Official Website</a>
         </main>
       </div>
 
