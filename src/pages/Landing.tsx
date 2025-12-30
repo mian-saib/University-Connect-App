@@ -55,7 +55,7 @@ const Landing = () => {
           <Link to="/chat">
             <Button size="lg" className="group gap-3 rounded-full px-8 py-6 text-lg shadow-glow transition-all hover:scale-105 hover:shadow-xl">
               <MessageCircle className="h-5 w-5 transition-transform group-hover:rotate-12" />
-              Start Chatting
+              Chat with the Assistant
               <Sparkles className="h-4 w-4 animate-pulse" />
             </Button>
           </Link>
