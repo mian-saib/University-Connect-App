@@ -1,67 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const FAQ_DATA = `
-University of Peshawar FAQ Knowledge Base:
-
-ADMISSIONS:
-- Programs: Bachelor's, Master's, MPhil, and PhD in Arts, Science, Commerce, Law, Pharmacy, Islamic Studies
-- Eligibility: Bachelor's requires HSSC/FSc, Master's needs Bachelor's in relevant field
-- Admission opens: August (fall) and January (spring)
-- Apply online through admission portal at uop.edu.pk
-- Documents needed: Matric, FSc/HSSC, Bachelor's certificates, CNIC/Form-B, domicile, photos, fee challan
-- Foreign students: Must submit IBCC equivalence and follow HEC guidelines
-- Only one regular program enrollment allowed at a time
-
-FEES & SCHOLARSHIPS:
-- BS programs: PKR 15,000-30,000/semester (varies by department)
-- Payment: Bank challan (HBL, NBP) or online banking
-- Scholarships: HEC Need-Based, Merit-Based, departmental scholarships
-- Apply at Financial Aid Office with income certificates and transcripts
-- Fee waivers available for deserving students
-- Refunds processed within 15 days if requested before semester starts
-
-ACADEMICS:
-- Fall semester: August-December, Spring: January-May
-- CGPA system (4.0 scale): A=4.0, B=3.0, C=2.0, D=1.0, F=0
-- Minimum 2.0 CGPA required for good standing
-- 75% attendance mandatory per course
-- Exams: Mid-term (30%), assignments/quizzes (20%), final (50%)
-- Department change possible within first semester
-- 5-6 courses (15-18 credit hours) per semester
-- Re-evaluation within 15 days of result with required fee
-
-HOSTEL & TRANSPORT:
-- Apply at Provost Office at academic year start
-- Priority for out-of-district students
-- Fee: PKR 8,000-15,000/semester
-- Facilities: Mess, Wi-Fi, common room, 24/7 security
-- Separate hostels for boys and girls
-- In-time: 10 PM (girls), 11 PM (boys)
-- Bus service: PKR 3,000-5,000/semester
-
-IT SUPPORT:
-- University email (@uop.edu.pk) after enrollment
-- Portal: portal.uop.edu.pk (registration number as username)
-- Free Wi-Fi (UOP-WiFi) across campus
-- Digital library: library.uop.edu.pk
-- IT Department at IT Building, Ground Floor
-- Email: it.support@uop.edu.pk
-
-STUDENT SERVICES:
-- Registrar's Office: Administration Block, 8 AM-4 PM
-- ID cards from Student Affairs Office
-- Transcripts: Examination Department (7-10 days)
-- Counseling: Student Counseling Center (free, confidential)
-- Clubs: Debating, Drama, Sports, Cultural
-- Medical Center near main library (free basic healthcare)
-- Character certificate: 3-5 working days
-- Migration certificate: 15-20 working days
-`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -71,10 +14,48 @@ serve(async (req) => {
   try {
     const { message } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error("Supabase configuration is missing");
+    }
+
+    // Create Supabase client to fetch FAQs
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    console.log("Fetching FAQs from database...");
+    
+    // Fetch all active FAQs from the database
+    const { data: faqs, error: faqError } = await supabase
+      .from("faqs")
+      .select("question, answer, category")
+      .eq("is_active", true);
+
+    if (faqError) {
+      console.error("Error fetching FAQs:", faqError);
+      throw new Error("Failed to fetch FAQ data");
+    }
+
+    console.log(`Loaded ${faqs?.length || 0} FAQs from database`);
+
+    // Build dynamic FAQ context from database
+    const faqContext = faqs?.reduce((acc, faq) => {
+      const categoryKey = faq.category.toUpperCase();
+      if (!acc[categoryKey]) {
+        acc[categoryKey] = [];
+      }
+      acc[categoryKey].push(`Q: ${faq.question}\nA: ${faq.answer}`);
+      return acc;
+    }, {} as Record<string, string[]>);
+
+    const formattedFaqData = Object.entries(faqContext || {})
+      .map(([category, items]) => `${category}:\n${(items as string[]).join("\n\n")}`)
+      .join("\n\n");
 
     console.log("Processing FAQ question:", message);
 
@@ -89,17 +70,19 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are the official FAQ Assistant for University of Peshawar, Pakistan. You ONLY answer questions related to the university using the knowledge base provided below. 
+            content: `You are the official FAQ Assistant for University of Peshawar, Pakistan. You answer questions using the knowledge base provided below.
 
 IMPORTANT RULES:
-1. Only answer questions about University of Peshawar based on the FAQ data provided
+1. Answer questions about University of Peshawar based on the FAQ data provided
 2. If a question is not related to the university or not in your knowledge base, politely redirect: "I can only help with University of Peshawar related questions. Please ask about admissions, fees, academics, hostels, IT support, or student services."
 3. Be friendly, professional, and concise
 4. Use Pakistani context (PKR currency, local terms)
 5. Include relevant contact information when helpful
 6. If unsure, suggest contacting the relevant office directly
 
-${FAQ_DATA}`,
+UNIVERSITY OF PESHAWAR FAQ KNOWLEDGE BASE:
+
+${formattedFaqData}`,
           },
           {
             role: "user",
